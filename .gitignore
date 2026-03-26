@@ -1,0 +1,6 @@
+# Exclude sensitive/account-specific memory
+MEMORY.md
+
+# Exclude temp files
+*.tmp
+*.log
