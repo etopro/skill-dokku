@@ -55,6 +55,39 @@ Dokku is a mini-Heroku powered by Docker. This skill helps automate the deployme
 
 ---
 
+## Remote Server Access
+
+All Dokku commands are run via SSH on the remote server.
+
+### Interactive SSH Session
+
+```bash
+# Connect to your Dokku server
+ssh root@your-server-ip
+
+# Once connected, run dokku commands directly
+dokku apps:list
+dokku logs myapp
+dokku ps:report myapp
+```
+
+### Single Command (Non-Interactive)
+
+Execute a single command without entering an interactive session:
+
+```bash
+# Pattern: ssh user@host "dokku command"
+ssh root@46.225.99.67 "dokku apps:list"
+ssh root@46.225.99.67 "dokku config:set myapp KEY=value"
+ssh root@46.225.99.67 "dokku logs myapp -n 50"
+```
+
+Use this pattern for automation, scripts, and when you need command output for further processing.
+
+**Note:** Avoid chaining commands with complex output formatting like `echo '---TEXT---' && command` as this may trigger security prompts. Run commands separately for best compatibility.
+
+---
+
 ## Installation & Upgrade
 
 ### Install Dokku
@@ -552,6 +585,16 @@ dokku letsencrypt:list
 ```
 
 **Important:** The app's domain must have valid DNS pointing to your server IP before enabling Let's Encrypt.
+
+**Port 80 mapping required:** Let's Encrypt uses HTTP-01 challenge which requires port 80 to be accessible. If the app only listens on a specific port (e.g., 8080), add port 80 mapping first:
+
+```bash
+# Check current port mappings
+dokku ports:report myapp
+
+# Add port 80 → container port mapping
+dokku ports:add myapp http:80:8080
+```
 
 ### Certificate Management
 
