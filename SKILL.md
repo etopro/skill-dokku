@@ -672,6 +672,61 @@ dokku ps:report myapp
 - `ps:restart` - Zero-downtime restart (new container starts before old stops)
 - `ps:rebuild` - Rebuilds image from existing code
 
+### App Locking
+
+Prevent new deployments while performing maintenance or debugging:
+
+```bash
+# Lock app (prevents deploys)
+dokku apps:lock myapp
+
+# Check if app is locked (exits 0 if locked)
+dokku apps:locked myapp
+
+# Unlock app
+dokku apps:unlock myapp
+```
+
+**Use Cases:**
+- **Maintenance** - Prevent deploys during system maintenance
+- **Debugging** - Keep running version stable while investigating issues
+- **Emergency Freeze** - Stop all deploys during critical periods
+
+**Behavior:**
+- Locked apps reject `git push` deployments
+- Does **not** stop the app (containers keep running)
+- Does **not** stop in-progress deploys
+- Manual unlock required to deploy again
+
+---
+
+## Network Management
+
+### Network Configuration
+
+Manage how apps bind to network interfaces:
+
+```bash
+# View network report for app
+dokku network:report myapp
+
+# View global network settings
+dokku network:report --global
+
+# Bind app to all interfaces (0.0.0.0)
+dokku network:set myapp bind-all-interfaces true
+
+# Disable bind-all-interfaces
+dokku network:set myapp bind-all-interfaces false
+```
+
+**When to use `bind-all-interfaces`:**
+- Not using a reverse proxy (nginx)
+- Custom networking setup
+- Direct container access
+
+**Note:** Most deployments use the nginx proxy and don't need this setting.
+
 ---
 
 ## Docker Cleanup
@@ -717,19 +772,37 @@ Create `app.json` in your repo:
       "type": "startup",
       "path": "/health",
       "attempts": 3
+    },
+    {
+      "name": "ready",
+      "type": "readiness",
+      "path": "/ready",
+      "attempts": 3
     }
   ]
 }
 ```
 
+### Healthcheck Options
+
+| Field | Values | Description |
+|-------|--------|-------------|
+| `type` | `startup`, `readiness`, `liveness` | When check runs |
+| `path` | `/health`, `/ready`, etc. | HTTP endpoint to check |
+| `attempts` | Number (1-10) | Retry attempts before failing |
+| `wait` | Seconds (default 0) | Delay before first check |
+| `timeout` | Seconds (default 1) | Max time per check |
+| `port` | Port number | Port to check (default from app) |
+
 ### Healthcheck Behavior
 
-- **Without healthchecks**: 10-second uptime check + port listening check
-- **With healthchecks**: Custom checks defined in app.json
+- **Without healthchecks**: 10-second uptime + port listening check
+- **With healthchecks**: Custom checks, old container only replaced after new passes
 
 ```bash
 # Test healthcheck endpoint
 curl http://myapp.domain.com/health
+curl http://myapp.domain.com/ready
 ```
 
 ---
