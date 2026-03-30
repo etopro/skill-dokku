@@ -158,6 +158,31 @@ dokku apps:destroy myapp
 dokku apps:destroy myapp --force
 ```
 
+### Checking Deploy Source & App Configuration
+
+See where an app is deployed from and how it was built:
+
+```bash
+# View full app report (includes deploy source, metadata, and more)
+dokku apps:report <app-name>
+
+# Shows deploy method and source:
+# - App deploy source: git-sync | docker-image | git
+# - App deploy source metadata: <repo-url>#<commit> or <image-name>
+
+# Examples:
+# git-sync:   git@github.com:user/repo.git#0cbd4c7d3d00ad7436df14412064b8f33255cbe2
+# git-sync:   https://github.com/user/repo.git#447ec7c69c9d5b884ee2c9fe2da26729122d5163
+# docker-image: nginx:alpine
+# docker-image: ollama/ollama
+
+# Check all apps' deploy sources
+for app in $(dokku apps:list | tail -n +2); do
+  echo "=== $app ==="
+  dokku apps:report $app | grep -E '(deploy source|metadata)'
+done
+```
+
 ### Environment Variables (Config)
 
 ```bash
