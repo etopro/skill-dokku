@@ -38,6 +38,28 @@ Dokku is a mini-Heroku powered by Docker. This skill helps automate the deployme
 | Data volume mount path | Persistent storage (default: /app/data) |
 | Confirmation | Destructive operations (destroy servers/apps) |
 
+### SSH Command Security Patterns
+
+**CRITICAL:** When running commands via SSH, avoid these patterns that trigger security prompts:
+
+| ❌ Avoid | ✅ Use Instead |
+|---------|---------------|
+| `ssh host "echo '---' && cmd"` | Run commands separately |
+| `ssh host " --flag value"` | `ssh host "cmd --flag value"` (no empty quotes/leading space before `--`) |
+| `ssh host "$(subcommand)"` | Run subcommand separately |
+
+**Rules:**
+1. Don't chain commands with `echo` for formatting - run commands separately
+2. Don't use empty quotes or leading space before flags (e.g., `"--flag"` at start)
+3. Don't use command substitution `$(...)` inside SSH commands
+
+**Correct pattern:**
+```bash
+ssh root@server "dokku apps:list"
+ssh root@server "docker stats --no-stream"
+ssh root@server "free -h"
+```
+
 ### Workflow Pattern
 
 1. **Ask** for required information (repo URL, app name, storage needs, etc.)
@@ -83,8 +105,6 @@ ssh root@46.225.99.67 "dokku logs myapp -n 50"
 ```
 
 Use this pattern for automation, scripts, and when you need command output for further processing.
-
-**Note:** Avoid chaining commands with complex output formatting like `echo '---TEXT---' && command` as this may trigger security prompts. Run commands separately for best compatibility.
 
 ---
 
@@ -181,6 +201,9 @@ for app in $(dokku apps:list | tail -n +2); do
   echo "=== $app ==="
   dokku apps:report $app | grep -E '(deploy source|metadata)'
 done
+
+# Quick check for single app
+dokku apps:report <app-name> | grep -E deploy
 ```
 
 ### Environment Variables (Config)
@@ -319,7 +342,7 @@ dokku git:from-image myapp nginx:alpine
 
 ### Deploy from Git Repository
 
-**Important:** `git:sync` with HTTPS URLs prompts for credentials (even for public repos) and doesn't work non-interactively. Use SSH URLs with deploy keys, or deploy via `git push` from your local machine.
+**Important:** `git:sync` with HTTPS URLs works for **public repos** — just make sure to specify the branch (e.g., `main`), as the default branch detection may fail if the repo doesn't use `master`. For **private repos**, HTTPS prompts for credentials and doesn't work non-interactively — use SSH URLs with deploy keys instead.
 
 #### Public Repositories (via git push)
 
@@ -330,8 +353,6 @@ git remote add dokku dokku@your-server:myapp
 # Push to deploy
 git push dokku main
 ```
-
-#### Private Repositories (SSH Key Method)
 
 #### Private Repositories (SSH Key Method)
 
@@ -401,6 +422,29 @@ dokku git:sync --build-if-changes myapp git@github.com:user/repo.git main
 
 **Note:** `--build-if-changes` is efficient for periodic checks - it only rebuilds if the repository has new commits.
 
+### Dockerfile Deployment Options
+
+When deploying from a Dockerfile, you can customize the runtime command without modifying the source repository:
+
+#### Override the Container Command
+
+Use `DOKKU_DOCKERFILE_START_CMD` to override the `CMD` or pass parameters to `ENTRYPOINT`:
+
+```bash
+# Override the CMD from Dockerfile
+dokku config:set myapp DOKKU_DOCKERFILE_START_CMD="gateway"
+
+# Pass parameters to ENTRYPOINT
+dokku config:set myapp DOKKU_DOCKERFILE_START_CMD="--harmony server.js"
+```
+
+This is useful when:
+- The upstream Dockerfile has an incorrect `CMD` (e.g., `status` instead of `gateway`)
+- You want to run different commands in different environments
+- You need to test a command variant without forking the repo
+
+**Important:** This only affects the runtime command. The build still uses the Dockerfile from the repository.
+
 ### Logs
 
 ```bash
@@ -456,6 +500,12 @@ docker stats --no-stream --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\
 # Container status with uptime
 docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
 
+# Container creation time
+docker ps --format 'table {{.Names}}\t{{.CreatedAt}}'
+
+# App disk usage (data directory)
+du -sh /home/dokku/*/
+
 # === Storage/Mount Disk Usage ===
 # Check app storage mount disk usage
 du -sh /var/lib/dokku/data/storage/*
@@ -465,8 +515,6 @@ dokku storage:list myapp
 
 # View storage report
 dokku storage:report myapp
-```
-docker stats
 ```
 
 ---
@@ -486,8 +534,10 @@ This data is **NOT** mounted in containers - it's Dokku's bookkeeping only.
 
 For data that must persist across deployments (databases, uploads), use bind mounts:
 
+**Important:** Always use `/var/lib/dokku/data/storage/<appname>` as the **host path** for consistency. This is Dokku's standard storage location and makes backup and management easier.
+
 ```bash
-# Create a persistent storage directory
+# Create a persistent storage directory (use standard path)
 dokku storage:ensure-directory /var/lib/dokku/data/storage/myapp
 
 # Mount storage to app (host:container)
@@ -780,6 +830,38 @@ dokku network:set myapp bind-all-interfaces false
 - Direct container access
 
 **Note:** Most deployments use the nginx proxy and don't need this setting.
+
+### Inter-Container Networking
+
+By default, Dokku apps run on Docker's `bridge` network, which does **not** support DNS resolution between containers. If one app needs to reach another (e.g., an app calling an Ollama LLM server), you must create a shared Docker network.
+
+```bash
+# Create a shared network
+dokku network:create shared
+
+# Attach apps to the shared network
+dokku network:set app1 attach-post-deploy shared
+dokku network:set app2 attach-post-deploy shared
+
+# Redeploy both apps to join the network
+dokku ps:rebuild app1
+dokku ps:rebuild app2
+```
+
+Once on the same custom network, containers can reach each other by name: `http://app2.web.1:port`.
+
+```bash
+# Verify connectivity from one container to another
+docker exec app1.web.1 curl -s http://app2.web.1:11434/
+
+# View which networks an app is attached to
+dokku network:report myapp
+```
+
+**Important:**
+- Both apps must be redeployed after attaching to the network — the setting only takes effect on deploy.
+- The container hostname is `<appname>.web.1` (Dokku's naming convention).
+- Apps referencing each other should use the container name in their config, not `localhost` or IPs (IPs may change).
 
 ### Port Management
 
