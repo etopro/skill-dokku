@@ -398,19 +398,11 @@ dokku git:sync --build myapp https://github.com/user/private-repo.git main
 dokku git:auth github.com
 ```
 
-### Deploy via Git Push (Traditional)
-
-```bash
-# On local machine, add remote
-git remote add dokku dokku@your-server:myapp
-
-# Push to deploy
-git push dokku main
-```
-
 ### Manual Update from Repository
 
-To manually update an app from its git repository (useful for pulling latest changes):
+For traditional `git push` deploys from your local machine, see [Public Repositories (via git push)](#public-repositories-via-git-push) above.
+
+To manually update an app on the server from its git repository (useful for pulling latest changes):
 
 ```bash
 # Sync and rebuild (always rebuilds)
