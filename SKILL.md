@@ -340,6 +340,42 @@ dokku git:from-image myapp nginx:alpine
 # App will be available at: http://myapp.your-domain.com
 ```
 
+### Deploy from Container Registry
+
+Deploy from GitHub Container Registry (ghcr.io), Docker Hub, or any OCI registry:
+
+```bash
+# Create app
+dokku apps:create myapp
+
+# Deploy from GitHub Container Registry
+dokku git:from-image myapp ghcr.io/org/app:latest
+
+# Deploy from Docker Hub (official images)
+dokku git:from-image myapp ollama/ollama
+
+# Deploy from Docker Hub (with tag)
+dokku git:from-image myapp postgres:16-alpine
+
+# Deploy from custom registry
+dokku git:from-image myapp registry.example.com/team/app:v1.2.3
+```
+
+**After deploying a registry image**, verify the app is working:
+
+```bash
+# Check container is running
+docker ps --format 'table {{.Names}}\t{{.Status}}' | grep myapp
+
+# Check what port the app actually listens on (see Port Discovery below)
+docker exec myapp.web.1 ss -tlnp 2>/dev/null || docker exec myapp.web.1 netstat -tlnp 2>/dev/null
+
+# Check logs for startup errors
+dokku logs myapp -n 50
+```
+
+**Important:** Registry images often listen on non-standard ports. Dokku auto-detects ports from `EXPOSE` in the Dockerfile, but this may not match the actual listening port. Always verify and fix port mappings after deploying — see [Port Discovery](#port-discovery-for-new-apps).
+
 ### Deploy from Git Repository
 
 **Important:** `git:sync` with HTTPS URLs works for **public repos** — just make sure to specify the branch (e.g., `main`), as the default branch detection may fail if the repo doesn't use `master`. For **private repos**, HTTPS prompts for credentials and doesn't work non-interactively — use SSH URLs with deploy keys instead.
@@ -920,6 +956,39 @@ dokku config:set myapp DOKKU_PORT=8080
 # Check which port Dokku detected
 dokku ports:report myapp | grep detected
 ```
+
+#### Port Discovery for New Apps
+
+When deploying from a container registry or unfamiliar image, the app may listen on an unexpected port. Dokku's auto-detected port may not match the actual listening port, resulting in 502 errors. Use this workflow to find and fix the correct port:
+
+```bash
+# Step 1: Check what Dokku detected vs what's configured
+dokku ports:report myapp
+
+# Step 2: Find the actual listening port inside the container
+docker exec myapp.web.1 ss -tlnp 2>/dev/null || docker exec myapp.web.1 netstat -tlnp 2>/dev/null
+
+# Step 3: Verify by curling the container internally
+# Try the detected port first, then any others found in Step 2
+docker exec myapp.web.1 curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/
+
+# Step 4: Fix the port mapping if needed
+# If the app listens on 18789 but Dokku mapped to 5000:
+dokku ports:set myapp http:80:18789
+
+# Step 5: Restart to apply
+dokku ps:restart myapp
+
+# Step 6: Verify externally
+curl -s -o /dev/null -w '%{http_code}' http://myapp.your-domain.com/
+```
+
+**Common signs of port mismatch:**
+- App container is running but URL returns **502 Bad Gateway**
+- `dokku logs myapp` shows no errors (app started fine)
+- `docker exec myapp.web.1 curl localhost:<port>` works but external URL doesn't
+
+**Tip:** Also check if the app binds to `127.0.0.1` (localhost only) instead of `0.0.0.0` (all interfaces). Apps that bind to localhost won't be reachable by nginx even with correct port mappings. Check the app's docs for a host/bind configuration option.
 
 #### Troubleshooting Port Issues
 
