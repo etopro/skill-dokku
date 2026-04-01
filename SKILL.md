@@ -486,25 +486,6 @@ dokku logs myapp -t
 dokku logs myapp -n 100
 ```
 
-### Process Management
-
-```bash
-# Restart app
-dokku ps:restart myapp
-
-# Rebuild app (without git push)
-dokku ps:rebuild myapp
-
-# Scale processes
-dokku ps:scale myapp web=2 worker=1
-
-# View running processes
-dokku ps:report myapp
-
-# View all running containers
-docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
-```
-
 ### Resource Monitoring
 
 **Important:** When user asks about resource usage, report BOTH overall VM stats AND per-container stats.
@@ -786,8 +767,14 @@ dokku ps:restart myapp
 # Rebuild app (without git push)
 dokku ps:rebuild myapp
 
+# Scale processes
+dokku ps:scale myapp web=2 worker=1
+
 # Check app status
 dokku ps:report myapp
+
+# View all running containers
+docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
 ```
 
 **Important:**
