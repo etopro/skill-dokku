@@ -87,9 +87,9 @@ ssh root@server "free -h"
 **Early in deployment, detect whether this is a public or internal service:**
 
 ```
-"Will this service be accessed by external users/customers?
+Will this service be accessed by external users/customers?
 - YES → Public web service (customers/users access it from internet)
-- NO  → Internal application (team only, no external access, internal bots)"
+- NO  → Internal application (team only, no external access, internal bots)
 ```
 
 **Public Services → Automatic Recommendations:**
