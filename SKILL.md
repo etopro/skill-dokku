@@ -111,7 +111,7 @@ After deployment, proactively suggest:
 
 **Internal Applications → Minimal Setup:**
 - Skip SSL setup questions
-- Deploy directly without security prompts
+- Deploy directly without SSL/HTTPS setup prompts
 - Offer storage/config only if needed
 
 **Key Decision Logic:**
