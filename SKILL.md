@@ -10,6 +10,18 @@ Dokku is a mini-Heroku powered by Docker. This skill helps automate the deployme
 
 ## AI Agent Guidance
 
+### First-Time Users — Onboarding
+
+**If the user has NOT provided a server IP address and appears to be a new Dokku user:**
+
+1. Suggest running `/dokku-onboarding` for an interactive guided introduction
+2. The onboarding skill will: show ASCII dashboard, collect server info, teach basic commands
+3. If user declines, proceed with normal Dokku operations below
+
+**If the user HAS provided a server IP or is a returning user:** skip onboarding and go directly to operations.
+
+---
+
 ### What the AI Can Do Autonomously
 
 - Install/upgrade Dokku
@@ -20,7 +32,10 @@ Dokku is a mini-Heroku powered by Docker. This skill helps automate the deployme
 - Restart, rebuild, and scale apps
 - View logs, app status, and resource usage
 - Install and configure plugins
-- Enable SSL (once domain/email are provided)
+- **Detect service type (public vs internal) and proactively offer SSL setup**
+- Enable SSL with Let's Encrypt (once domain/email are provided)
+- Configure healthchecks for public services
+- Enable automatic certificate renewal
 - Create and mount storage volumes
 
 ### What Requires User Input
@@ -66,6 +81,54 @@ ssh root@server "free -h"
 2. **Execute** the operation autonomously
 3. **Report** results and provide URLs/credentials
 4. **Confirm** before destructive actions
+
+### Service Type Detection (CRITICAL FOR PUBLIC SERVICES)
+
+**Early in deployment, detect whether this is a public or internal service:**
+
+```
+Will this service be accessed by external users/customers?
+- YES → Public web service (customers/users access it from internet)
+- NO  → Internal application (team only, no external access, internal bots)
+```
+
+**Public Services → Automatic Recommendations:**
+
+After deployment, proactively suggest:
+
+1. **🔒 SSL/HTTPS Setup** (CRITICAL)
+   - Let's Encrypt (free, auto-renewal)
+   - Email for renewal notifications
+   - DNS must be configured pointing to server
+
+2. **💚 Healthchecks** (for zero-downtime deployments)
+   - Automatic app health verification
+   - Prevents broken deploys
+
+3. **🔄 Auto-Renewal** (prevents certificate expiry)
+   - SSL certs expire every 90 days
+   - Must be auto-renewed or app breaks
+
+**Internal Applications → Minimal Setup:**
+- Skip SSL setup questions
+- Deploy directly without SSL/HTTPS setup prompts
+- Offer storage/config only if needed
+
+**Key Decision Logic:**
+
+```
+Is this a public web service?
+├─ YES (customers/users access from internet)
+│  ├─ Recommend SSL immediately
+│  ├─ Ask for email + DNS readiness
+│  ├─ Enable healthchecks
+│  └─ Enable auto-renewal
+│
+└─ NO (internal use only)
+   ├─ Deploy with minimal questions
+   ├─ Skip SSL setup
+   └─ Offer advanced features on request
+```
 
 ## Requirements
 
@@ -325,6 +388,19 @@ dokku domains:report myapp
 ---
 
 ## Deployment
+
+### CRITICAL: Determine Service Type FIRST
+
+**Before any deployment, determine the service type using the**
+[Service Type Detection](#service-type-detection-critical-for-public-services)
+**guidance in the AI Agent Guidance section.**
+
+**Why this matters:**
+- Public services WITHOUT SSL = data exposed, browser warnings, client rejection
+- Public services WITHOUT auto-renewal = broken in 90 days
+- Treating public services as internal = security/reliability issues
+
+---
 
 ### Quick Test Deployment (Docker Image)
 
@@ -631,6 +707,19 @@ Recommended patterns:
 ---
 
 ## SSL & Certificates
+
+### FOR PUBLIC SERVICES: SSL IS MANDATORY
+
+**If service type = PUBLIC (external users access it):**
+- ✅ Always enable SSL/HTTPS (after determining DNS is ready)
+- ✅ Always set up auto-renewal (certificate expires every 90 days)
+- ✅ Always ask for email for renewal notifications
+
+**If service type = INTERNAL (team/bots only):**
+- Skip SSL setup entirely
+- Deploy without these questions
+
+---
 
 ### Let's Encrypt (Automatic SSL)
 
