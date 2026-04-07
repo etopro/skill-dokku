@@ -391,32 +391,14 @@ dokku domains:report myapp
 
 ### CRITICAL: Determine Service Type FIRST
 
-**Before any deployment, ask this question:**
-
-```
-Will this service be accessed by external users/customers through the internet?
-
-A) YES - Public web service (customers, users, external APIs access it)
-   → Must have SSL/HTTPS
-   → Must have healthchecks
-   → Must have auto-renewal
-
-B) NO - Internal only (team/internal bots, no external access)
-   → Skip SSL setup
-   → Minimal questions
-   → Deploy with basic config
-```
+**Before any deployment, determine the service type using the**
+[Service Type Detection](#service-type-detection-critical-for-public-services)
+**guidance in the AI Agent Guidance section.**
 
 **Why this matters:**
 - Public services WITHOUT SSL = data exposed, browser warnings, client rejection
 - Public services WITHOUT auto-renewal = broken in 90 days
 - Treating public services as internal = security/reliability issues
-
-**Red Flags - DO NOT RATIONALIZE:**
-- "I'll add SSL later" → Add it now, not later
-- "It's temporary" → Even temporary public services need SSL
-- "We don't handle sensitive data" → Still need HTTPS for modern standards
-- "Only company uses it" → If it's behind company VPN, it's internal; otherwise it's public
 
 ---
 
