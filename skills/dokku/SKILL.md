@@ -1,3 +1,8 @@
+---
+name: dokku
+description: Deploy and manage Dokku on Linux VMs
+---
+
 # Dokku Management Skill
 
 An AI skill for deploying and managing [Dokku](https://dokku.com/) on Linux VMs.
