@@ -1,0 +1,11 @@
+{
+  "name": "dokku",
+  "description": "Dokku deployment automation skill",
+  "version": "1.0.0",
+  "author": {
+    "name": "Etopro"
+  },
+  "skills": [
+    "SKILL.md"
+  ]
+}
