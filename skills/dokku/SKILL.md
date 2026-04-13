@@ -246,6 +246,23 @@ dokku apps:destroy myapp
 dokku apps:destroy myapp --force
 ```
 
+**DANGER: Destroying apps causes data loss**
+
+`apps:destroy` permanently deletes:
+- SSL certificates
+- Port mappings
+- Environment variables
+- Nginx configuration
+
+**Persistent storage data survives but becomes orphaned:**
+- Data at `/var/lib/dokku/data/storage/<app>/` is NOT deleted
+- After destruction, this data is orphaned (no app can access it)
+- You must manually remove it if desired: `rm -rf /var/lib/dokku/data/storage/<app>`
+
+**Before destroying an app, ask the user:**
+1. Should I backup the config first? (`dokku config:export myapp > backup.env`)
+2. Should I remove the persistent storage data at `/var/lib/dokku/data/storage/<app>/`?
+
 ### Checking Deploy Source & App Configuration
 
 See where an app is deployed from and how it was built:
@@ -529,7 +546,23 @@ dokku git:sync --build myapp git@github.com:user/repo.git main
 dokku git:sync --build-if-changes myapp git@github.com:user/repo.git main
 ```
 
+**IMPORTANT:** `git:sync` is the SAFE way to update existing apps. It preserves:
+- Environment variables (config)
+- SSL certificates
+- Port mappings
+- Storage mounts
+- Domain configuration
+
+**DO NOT destroy and recreate apps** to update them - this loses SSL, configs etc
+
 **Note:** `--build-if-changes` is efficient for periodic checks - it only rebuilds if the repository has new commits.
+
+**If git:sync fails, try `ps:rebuild` first:**
+```bash
+dokku ps:rebuild myapp
+```
+
+This rebuilds from the existing cached code without needing git access.
 
 ### Dockerfile Deployment Options
 
