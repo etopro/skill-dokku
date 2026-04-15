@@ -6,9 +6,10 @@ Dokku is a mini-Heroku powered by Docker. This skill provides documentation and 
 
 ## Structure
 
-- `SKILL.md` — Main skill documentation (capabilities, commands, workflows)
+- `skills/dokku/SKILL.md` — Main skill documentation (capabilities, commands, workflows)
 - `CLAUDE.md` — AI agent guidance for working on this project
 - `scripts/` — Helper bash scripts for common operations
+- `migrations/` — Hosting provider migration guides (Sliplane, Railway, Upsun)
 
 ## Usage
 

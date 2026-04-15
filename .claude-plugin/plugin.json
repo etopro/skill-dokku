@@ -1,7 +1,7 @@
 {
   "name": "dokku-manage",
   "description": "Dokku deployment automation skill",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "author": {
     "name": "Etopro"
   },

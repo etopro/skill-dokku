@@ -5,6 +5,8 @@ description: Deploy and manage Dokku on Linux VMs
 
 # Dokku Management Skill
 
+**When this skill is loaded, display the ASCII logo from `assets/dokku_logo.txt` to the user.**
+
 An AI skill for deploying and managing [Dokku](https://dokku.com/) on Linux VMs.
 
 ## Overview
@@ -1316,6 +1318,23 @@ dokku config:set myapp KEY1=value1 KEY2=value2
 # 5. Deploy
 git push dokku main
 ```
+
+---
+
+## Migrations from Other Hosting Providers
+
+For migrating containers and data from other hosting providers to Dokku, see the `migrations/` directory in this project:
+
+- **[Sliplane](../migrations/sliplane.md)** — Full guide with SSH tunnel workarounds, data transfer methods, verification
+- **[Railway](../migrations/railway.md)** — TODO: Railway migration guide
+- **[Upsun / Platform.sh](../migrations/upsun.md)** — TODO: Upsun migration guide
+
+Each migration guide includes:
+- Pre-migration questionnaire to gather required information
+- Provider-specific access patterns and quirks
+- Step-by-step Dokku setup
+- Data export, transfer, and import procedures
+- Verification and troubleshooting
 
 ---
 
