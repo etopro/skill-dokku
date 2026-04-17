@@ -18,6 +18,70 @@ description: Deploy and manage Dokku on Linux VMs
 
 An AI skill for deploying and managing [Dokku](https://dokku.com/) on Linux VMs.
 
+## Server Profiles
+
+Server connection profiles are stored at `${CLAUDE_PLUGIN_DATA}/servers.json` and persist across all projects.
+
+### On Skill Load
+
+1. Check if `${CLAUDE_PLUGIN_DATA}/servers.json` exists
+2. If yes: read and display available servers
+3. If no: inform user servers will be auto-saved after first connection
+
+### Server Selection Logic
+
+When user executes a command without specifying a server:
+
+| Servers in JSON | Action |
+|-----------------|--------|
+| 0 | Ask user for server IP, auto-save after successful connection |
+| 1 | Use that server silently |
+| 2+ | Prompt user to choose: "Which server? [list from JSON]" |
+
+### When User Provides Server IP
+
+- If IP/host matches a saved profile: use that profile's auth settings
+- If IP/host is new: connect, then **auto-save** to servers.json after successful connection with generated name (e.g., "server-3", "server-4")
+
+### Auto-Save Behavior
+
+After successful SSH connection to a new server:
+```json
+{
+  "name": "generated-name-or-user-provided",
+  "host": "IP or hostname",
+  "user": "ssh-user",
+  "authType": "key" | "password",
+  "sshKeyPath": "~/.ssh/key-path"  // if key auth
+  "lastSeen": "ISO-8601-timestamp"
+}
+```
+
+### Conversational Commands
+
+| User says | AI does |
+|-----------|---------|
+| "show my servers" | List all servers from JSON |
+| "forget X" | Remove server X from JSON |
+| "rename X to Y" | Update server name in JSON |
+
+### Server Profile JSON Structure
+
+```json
+{
+  "servers": [
+    {
+      "name": "dokku-01",
+      "host": "46.225.99.67",
+      "user": "root",
+      "authType": "key",
+      "sshKeyPath": "~/.ssh/id_ed25519",
+      "lastSeen": "2026-04-17T10:00:00Z"
+    }
+  ]
+}
+```
+
 ## Overview
 
 Dokku is a mini-Heroku powered by Docker. This skill helps automate the deployment and management of Dokku instances through SSH commands.
