@@ -440,11 +440,8 @@ dokku domains:reset myapp
 ### Service Control
 
 ```bash
-# Restart nginx (proxy)
-systemctl restart nginx
-
-# Restart docker
-systemctl restart docker
+# Reload nginx (proxy)
+dokku nginx:reload
 
 # Check service status
 systemctl status nginx
