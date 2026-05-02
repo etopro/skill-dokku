@@ -73,7 +73,7 @@ After successful SSH connection to a new server:
     {
       "name": "dokku-01",
       "host": "46.225.99.67",
-      "user": "root",
+      "user": "dokku",
       "authType": "key",
       "sshKeyPath": "~/.ssh/id_ed25519",
       "lastSeen": "2026-04-17T10:00:00Z"
@@ -81,6 +81,11 @@ After successful SSH connection to a new server:
   ]
 }
 ```
+
+**IMPORTANT:** This skill requires connecting as the `dokku` user, NOT `root`. The `dokku` user has restricted access to only run necessary Dokku commands. When setting up a new server, ensure:
+1. The `dokku` user exists (created by Dokku installation)
+2. SSH key access is configured for the `dokku` user
+3. The `user` field in server profiles is set to `"dokku"` (not `"root"`)
 
 ## Overview
 
@@ -150,9 +155,9 @@ Dokku is a mini-Heroku powered by Docker. This skill helps automate the deployme
 
 **Correct pattern:**
 ```bash
-ssh root@server "dokku apps:list"
-ssh root@server "docker stats --no-stream"
-ssh root@server "free -h"
+ssh dokku@server "dokku apps:list"
+ssh dokku@server "docker stats --no-stream"
+ssh dokku@server "free -h"
 ```
 
 ### Workflow Pattern
@@ -228,7 +233,7 @@ All Dokku commands are run via SSH on the remote server.
 
 ```bash
 # Connect to your Dokku server
-ssh root@your-server-ip
+ssh dokku@your-server-ip
 
 # Once connected, run dokku commands directly
 dokku apps:list
@@ -242,9 +247,9 @@ Execute a single command without entering an interactive session:
 
 ```bash
 # Pattern: ssh user@host "dokku command"
-ssh root@46.225.99.67 "dokku apps:list"
-ssh root@46.225.99.67 "dokku config:set myapp KEY=value"
-ssh root@46.225.99.67 "dokku logs myapp -n 50"
+ssh dokku@46.225.99.67 "dokku apps:list"
+ssh dokku@46.225.99.67 "dokku config:set myapp KEY=value"
+ssh dokku@46.225.99.67 "dokku logs myapp -n 50"
 ```
 
 Use this pattern for automation, scripts, and when you need command output for further processing.
