@@ -641,6 +641,101 @@ dokku ps:rebuild myapp
 
 This rebuilds from the existing cached code without needing git access.
 
+### Continuous Deployment (Auto-Deploy on Git Push)
+
+Dokku has **no built-in webhook or polling mechanism** to auto-deploy when an external git remote (GitHub, GitLab) changes. Deploys are always explicitly triggered. The standard way to auto-deploy on push to `main` is the official **`dokku/github-action`** (published by the Dokku org).
+
+The action runs in GitHub Actions, SSHes to your Dokku server, and runs `git push` to the app's git remote.
+
+#### Setup
+
+**Step 1: Generate a dedicated SSH key pair for the runner**
+
+This key is the GitHub Actions runner's identity when it SSHes to Dokku. Do NOT reuse a personal key.
+
+```bash
+ssh-keygen -t ed25519 -f gha-dokku-deploy -N "" -C "github-actions"
+# Produces:
+#   gha-dokku-deploy      → private key (paste into GitHub secret)
+#   gha-dokku-deploy.pub  → public key (register on Dokku server)
+```
+
+`-N ""` sets an empty passphrase (required — GitHub Actions cannot type one).
+
+**Step 2: Register the public key on the Dokku server**
+
+```bash
+# On the Dokku server (as root)
+dokku ssh-keys:add github-deploy < gha-dokku-deploy.pub
+```
+
+Name the key clearly (`github-deploy`) so you can revoke it later with `dokku ssh-keys:remove github-deploy`.
+
+**Step 3: Add the private key as a GitHub repo secret**
+
+Repo → Settings → Secrets and variables → Actions → New repository secret. Name it e.g. `DOKKU_SSH_KEY`, paste the *contents of the private key file*.
+
+**Step 4: Add the workflow**
+
+`.github/workflows/deploy.yml`:
+
+```yaml
+name: Deploy to Dokku
+on:
+  push:
+    branches: [main]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # REQUIRED — Dokku rejects shallow clones
+      - uses: dokku/github-action@v1.10.0
+        with:
+          git_remote_url: "ssh://dokku@YOUR_SERVER_IP:22/APP_NAME"
+          ssh_private_key: ${{ secrets.DOKKU_SSH_KEY }}
+```
+
+**Step 5: Delete the local key files**
+
+Once the private key is in the GitHub secret and the public key is registered on the server, delete `gha-dokku-deploy` and `gha-dokku-deploy.pub` from your local machine.
+
+#### Gotchas
+
+- **`fetch-depth: 0` is required.** `actions/checkout` defaults to a shallow clone, which Dokku's `git push` rejects.
+- **Push happens as the `dokku` user**, not `root`. The remote URL must use `dokku@` (the action constructs it from `git_remote_url`).
+- **Branch name in the workflow must match what you push.** The action pushes the checked-out ref to Dokku; if your repo's default is `main` but the action's example shows `master`, update both.
+
+#### What the SSH Key Can Do (Security)
+
+When you register a key with `dokku ssh-keys:add`, Dokku adds it to `/home/dokku/.ssh/authorized_keys` wrapped with a forced command:
+
+```
+command="... /usr/bin/dokku $SSH_ORIGINAL_COMMAND",no-agent-forwarding,no-user-rc,no-X11-forwarding,no-port-forwarding ssh-ed25519 AAAA...
+```
+
+**What this restricts (automatic):**
+- Only the `dokku` binary executes — no interactive shell, no arbitrary commands
+- No port forwarding, agent forwarding, or X11
+
+**What this does NOT restrict (important):**
+- Vanilla Dokku has **no per-app or per-command ACL**. Any registered key can run *any* `dokku` subcommand — including `apps:destroy --force`, `config:show` (leaks secrets), or `ssh-keys:add` (privilege persistence).
+- Every key added via `ssh-keys:add` is effectively a Dokku admin credential.
+
+**Mitigations:**
+- One key per actor (separate keys for GitHub Actions, humans, other CI). Name them clearly so individual revocation is possible.
+- Treat the GitHub repo secret like a production credential. Anyone with repo write access (or a malicious workflow PR) can exfiltrate it. Use GitHub environment-protected secrets with required reviewers for shared repos.
+- Rotate by generating a new pair, `ssh-keys:add` the new one, update the GH secret, then `ssh-keys:remove` the old one.
+- For per-app scoping, see the third-party [`dokku-acl`](https://github.com/dokku/dokku-acl) plugin (separate install, extra moving part).
+
+#### Alternatives to GitHub Actions
+
+If you don't want a GitHub Actions workflow, two other patterns work:
+
+- **Cron + `dokku git:sync --build-if-changes`** on the Dokku server — polls the external repo on an interval, only rebuilds if there are new commits. Simple, no GitHub config, adds polling latency. Use when the repo isn't on GitHub or when you want to avoid sharing keys with GitHub.
+- **GitHub webhook → small endpoint that runs `dokku git:sync`** — DIY; not documented by Dokku. Most teams pick one of the two above instead.
+
 ### Dockerfile Deployment Options
 
 When deploying from a Dockerfile, you can customize the runtime command without modifying the source repository:
