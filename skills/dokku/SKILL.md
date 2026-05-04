@@ -693,6 +693,7 @@ jobs:
           fetch-depth: 0   # REQUIRED — Dokku rejects shallow clones
       - uses: dokku/github-action@v1.10.0
         with:
+          branch: main                     # MUST match Dokku's deploy-branch — see Gotchas
           git_remote_url: "ssh://dokku@YOUR_SERVER_IP:22/APP_NAME"
           ssh_private_key: ${{ secrets.DOKKU_SSH_KEY }}
 ```
@@ -701,11 +702,21 @@ jobs:
 
 Once the private key is in the GitHub secret and the public key is registered on the server, delete `gha-dokku-deploy` and `gha-dokku-deploy.pub` from your local machine.
 
+**Step 6: Verify the first run actually deployed**
+
+A green workflow is necessary but not sufficient (see Gotchas — branch mismatches are silent). Confirm the build ran:
+
+```bash
+dokku apps:report APP_NAME | grep -E "deploy source|deploy source metadata"
+```
+
+A real deploy shows `App deploy source: git-push` and the commit SHA you just pushed. If it still says `git-sync` (or shows an old SHA), the workflow pushed but Dokku didn't build — almost always a `branch:` mismatch.
+
 #### Gotchas
 
 - **`fetch-depth: 0` is required.** `actions/checkout` defaults to a shallow clone, which Dokku's `git push` rejects.
 - **Push happens as the `dokku` user**, not `root`. The remote URL must use `dokku@` (the action constructs it from `git_remote_url`).
-- **Branch name in the workflow must match what you push.** The action pushes the checked-out ref to Dokku; if your repo's default is `main` but the action's example shows `master`, update both.
+- **The action's `branch:` input defaults to `master`.** It pushes `HEAD:<branch>` where `<branch>` is that input. If Dokku's deploy-branch for the app is `main` (modern default) and you don't set `branch: main`, the push lands on a stray `master` ref that Dokku ignores. **The workflow exits 0 and reports success**, but the build never runs and the app keeps serving the old code. Dokku's only signal is a `remote:` line in the push output: `WARNING: deploy did not complete, you must push to main`. Look up the deploy-branch with `dokku git:report APP_NAME | grep "Git deploy branch"` and pin both sides to the same value. Note that `Git global deploy branch` (server-wide default) and `Git deploy branch` (per-app) can differ — the per-app one wins.
 
 #### What the SSH Key Can Do (Security)
 
